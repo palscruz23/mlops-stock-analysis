@@ -1,20 +1,16 @@
 import os
-from dotenv import load_dotenv
 import snowflake.connector
 from snowflake.connector.pandas_tools import write_pandas
 import pandas as pd
-
-load_dotenv()
+from airflow.hooks.base import BaseHook
 
 def snowflake_connection():
     try:
+        connector = BaseHook.get_connection("snowflake_conn")
         conn = snowflake.connector.connect(
-            user = os.getenv("SNOWFLAKE_USER"),
-            password = os.getenv("SNOWFLAKE_PASSWORD"),
-            account = os.getenv("SNOWFLAKE_ACCOUNT"),
-            # warehouse = os.getenv("SNOWFLAKE_WAREHOUSE"),
-            # database = os.getenv("SNOWFLAKE_DATABASE"),
-            # schema = os.getenv("SNOWFLAKE_SCHEMA")
+            user = connector.login,
+            password = connector.password,
+            account = connector.host
         )
         return conn
     except Exception as e:

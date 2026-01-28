@@ -2,5 +2,4 @@ yfinance
 pandas
 python-dotenv
 snowflake-connector-python
-logging
 snowflake-connector-python[pandas]

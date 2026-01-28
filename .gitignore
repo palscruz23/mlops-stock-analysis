@@ -1,3 +1,4 @@
 .env
 .claude/
 .vscode/
+airflow_settings.yaml

@@ -1,14 +1,9 @@
 import yfinance as yf
-from snowflake_setup import *
+from utils.snowflake_setup import snowflake_connection
 import logging
 from snowflake.connector.pandas_tools import write_pandas
 import pandas
-
-conn = snowflake_connection()
-database = os.getenv("SNOWFLAKE_DATABASE")
-schema = os.getenv("SNOWFLAKE_SCHEMA")
-table = os.getenv("SNOWFLAKE_TABLE")
-temp_table = os.getenv("SNOWFLAKE_TEMP_TABLE")
+from airflow.hooks.base import BaseHook
 
 # logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,8 +20,9 @@ if __name__ == "__main__":
 
 def write_table(df, database, schema, table_name, conn):
     try:
-        logging.info(f"Updating Temporary Table {table_name}...")
+        logging.info(f"Updating Staging Table {table_name}...")
         cursor = conn.cursor()
+
         cursor.execute("USE ROLE STOCK_ANALYST;")
         cursor.execute(f"USE DATABASE {database};")
         cursor.execute(f"USE SCHEMA {schema};")
@@ -39,9 +35,9 @@ def write_table(df, database, schema, table_name, conn):
             f"INSERT INTO {table_name} VALUES (%s, %s, %s, %s, %s, %s, %s)",
             records
         )
-        logging.info(f"Temporary Table {table_name} Updated")
+        logging.info(f"Staging Table {table_name} Updated")
     except Exception as e:
-        print(f"Error in writing in TEMP TABLE: {e}")
+        print(f"Error in writing in Staging TABLE: {e}")
         return None
     
 
@@ -56,8 +52,9 @@ def fetch_and_staging(ticker="SI=F", period="2d", interval="1h"):
     """
 
     logger.info(f"Fetching {ticker} data from Yahoo Finance")
-    silver = yf.Ticker(ticker)
-    data = silver.history(period=period, interval=interval)
+   
+    asset = yf.Ticker(ticker)
+    data = asset.history(period=period, interval=interval)
     data = data.drop(['Dividends', 'Stock Splits'], axis=1)
     data = data.reset_index()
     data["Ticker"] = ticker
@@ -69,14 +66,19 @@ def fetch_and_staging(ticker="SI=F", period="2d", interval="1h"):
     logger.info(f"Fetched {len(data)} rows for {ticker} from {data['DATETIME'].min()} to {data['DATETIME'].max()}")
     logger.info(f"DataFrame dtypes: {data.dtypes}")
     logger.info(f"Sample datetime: {data['DATETIME'].iloc[0]}")
-
+    
     try:
+        conn = snowflake_connection()
         cursor = conn.cursor()
+        connector = BaseHook.get_connection("snowflake_conn")
+        database = connector.extra_dejson["database"]
+        schema = connector.schema
+        temp_table = "PRICE_STAGING"
         cursor.execute("USE ROLE STOCK_ANALYST;")
         cursor.execute(f"USE DATABASE {database};")
         cursor.execute(f"USE SCHEMA {schema};")
         sql = f'''
-        CREATE TEMPORARY TABLE IF NOT EXISTS {temp_table} (
+        CREATE TABLE IF NOT EXISTS {temp_table} (
             DATETIME TIMESTAMP_TZ,
             TICKER TEXT,
             OPEN FLOAT,
@@ -88,24 +90,30 @@ def fetch_and_staging(ticker="SI=F", period="2d", interval="1h"):
         '''
         cursor.execute(sql)
         conn.commit()
-        logging.info(f"Temporary Table {temp_table} created")
+        logging.info(f"Staging Table {temp_table} created")
 
         # Write to Temp table
-        logging.info(f"Writing to Temporary Table {temp_table}...")
+        logging.info(f"Writing to Staging Table {temp_table}...")
 
         write_table(data, database, schema, temp_table, conn)
-
+        conn.close()
     except Exception as e:
         print(f"Error in creating table: {e}")
         return None
 
 def merge_to_main():
     """
-    Merging Snowflake temporary staging table to main table.
+    Merging Snowflake staging table to main table.
     """
     try:
-        logging.info(f"Merging Temporary Table {temp_table} to main...")
-
+        cursor = conn.cursor()
+        connector = BaseHook.get_connection("snowflake_conn")
+        database = connector.extra_dejson["database"]
+        schema = connector.schema
+        table = PRICE
+        temp_table = PRICE_STAGING
+        logging.info(f"Merging Staging Table {temp_table} to main...")
+        conn = snowflake_connection()
         cursor = conn.cursor()
         cursor.execute("USE ROLE STOCK_ANALYST;")
         cursor.execute(f"USE DATABASE {database};")
@@ -132,11 +140,13 @@ def merge_to_main():
         cursor.execute(sql)
         total_rows = cursor.fetchone()[0]
         logging.info(f"Merged tables. Total rows in {table}: {total_rows}")
-        conn.close() # Temporary table disappears after session closes.
+
+        sql = f"TRUNCATE TABLE {temp_table}"
+        cursor.execute(sql)
+        logging.info(f"Removed contents of Table {temp_table}")
+
+        conn.close() 
 
     except Exception as e:
         print(f"Error in merging table: {e}")
         return None
-
-df = fetch_and_staging(ticker="AAPL", period="2d", interval="1h")
-merge_to_main() 

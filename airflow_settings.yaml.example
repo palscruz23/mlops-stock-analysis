@@ -7,20 +7,20 @@
 
 airflow:
   connections:
-    - conn_id: snowflake_conn
-      conn_type: snowflake
-      conn_host: DICTEOE-GH21479
-      conn_schema: STOCKS
-      conn_login: ENGRPOLJOHNCRUZ
-      conn_password: eJN8JARqfvFfFCP
+    - conn_id: sample
+      conn_type: sample
+      conn_host: sample.snowflakecomputing.com
+      conn_schema: sample
+      conn_login: sample
+      conn_password: sample
       conn_port:
       conn_extra:
-        warehouse: STOCK_WH
-        database: STOCKS_DB
+        warehouse: sample
+        database: sample
   pools:
     - pool_name:
       pool_slot:
       pool_description:
   variables:
-    - variable_name: USER
-      variable_value: Pol John Cruz
+    - variable_name: sample
+      variable_value: sample
