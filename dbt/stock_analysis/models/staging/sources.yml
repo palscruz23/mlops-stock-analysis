@@ -1,0 +1,6 @@
+sources:
+  - name: stocks
+    database: STOCKS_DB
+    schema: STOCKS
+    tables:
+      - name: PRICE
