@@ -1,0 +1,12 @@
+version: '3.1'
+
+services:
+  mlflow: 
+    image: "ghcr.io/mlflow/mlflow"
+    ports:
+      - "5000:5000"
+    command: mlflow server --host 0.0.0.0
+  # starts
+  #   enrironment:
+  # container 
+  #   - KEY=value

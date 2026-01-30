@@ -1,5 +1,13 @@
+# Fetching data and Snowflake dependencies
 yfinance
 pandas
-python-dotenv
 snowflake-connector-python
 snowflake-connector-python[pandas]
+
+# ML training and registry
+scikit-learn
+mlflow
+
+# dbt pipeline
+dbt-core 
+dbt-snowflake
