@@ -6,7 +6,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.models import Variable
 # from utils.snowflake_setup import snowflake_connection
-
+from utils.helper import train
 
 DBT_PROJECT_PATH = os.path.join(os.environ["AIRFLOW_HOME"], "dbt", 
 "stock_analysis")
@@ -42,4 +42,10 @@ with DAG(
             profile_config=profile_config,
         )
 
+        task_train = PythonOperator(
+            task_id="train_model",
+            python_callable=train, 
+        )    
+
+        transform_data >> task_train
 
