@@ -11,3 +11,4 @@ mlflow
 # dbt pipeline
 dbt-core 
 dbt-snowflake
+astronomer-cosmos

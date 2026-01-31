@@ -7,14 +7,14 @@ from utils.snowflake_setup import snowflake_connection
 
 default_args = {
     'owner': Variable.get("USER"),
-    'retries': 3,  # How many times to retry on failure?
+    'retries': 3,  
     'retry_delay': timedelta(minutes=5),
 }
 
 with DAG(
-      dag_id='stock-data-pipeline',  # What should you name it?
+      dag_id='stock-data-pipeline', 
       default_args=default_args,
-      schedule='30 19 * * *',  # Remember: daily at 6am?
+      schedule='30 19 * * *', 
       start_date=datetime(2026, 1, 27),
       catchup=False,
   ) as dag:
