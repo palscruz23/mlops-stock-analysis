@@ -5,9 +5,9 @@ WITH base1 as (SELECT
     LEAD(CLOSE, 1) OVER (PARTITION BY TICKER ORDER BY DATETIME) AS NEXT_PRICE,
 FROM   
     {{ ref('int_price_features') }}
-    )
+    ),
 
-WITH base2 as (SELECT
+    base2 as (SELECT
     *,
     CASE WHEN NEXT_PRICE > CLOSE THEN 1 ELSE 0 END AS LABEL
 FROM   
