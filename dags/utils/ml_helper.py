@@ -10,8 +10,8 @@ from sklearn.metrics import classification_report
 from itertools import product
 from mlflow import MlflowClient
 import json
+import time
 
-client = MlflowClient()
 MODEL_NAME = "stock-classifier"
 
 # logging.basicConfig(level=logging.INFO)
@@ -70,7 +70,7 @@ def ml_flow(model, params, report):
             'precision_macro': report['macro avg']['precision'],
             'recall_macro': report['macro avg']['recall'],
         })
-        mlflow.sklearn.log_model(model, model.__class__.__name__)    
+        mlflow.sklearn.log_model(model,  artifact_path="model")    
 
 def grid_search_rforest(xtrain, xtest, ytrain, ytest):
     # Hyperparameter Tuning of Random Forest 
@@ -108,30 +108,58 @@ def train():
 def search_best_run():
     logging.info("Searching for best run...")
     mlflow.set_tracking_uri("http://mlflow:5000")
+    client = MlflowClient()
     best_run = mlflow.search_runs(
         experiment_names=["stock-classifier"],
         order_by=["metrics.f1_macro DESC"],
         max_results=1
     )
+    logging.info(f"Columns available: {best_run.columns.tolist()}")        
+    logging.info(f"First row: {best_run.iloc[0]}")
 
     run_id = best_run.iloc[0].run_id
-    history_json = best_run.iloc[0]['tags.mlflow.log-model.history']
-    history_data = json.loads(history_json)
-    model = history_data[0]['artifact_path']
 
-    model_uri = f"runs:/{run_id}/{model}"
+    version_info = client.search_model_versions(f"run_id='{run_id}'")
+
+    if version_info:
+        # Get the version from the first result
+        model_version = version_info[0].version
+        logging.info(f"Model Version: {model_version}")
+    else:
+        # This happens if the run exists, but was never registered in the Model Registry
+        logging.warning(f"No registered model version found for Run ID: {run_id}")
+        model_version = None
+
+    logging.info(f"Model Version: {model_version}")
+
+    model_uri = f"runs:/{run_id}/model"
     registered_model = mlflow.register_model(model_uri, name=MODEL_NAME)
-    
-    client.set_registered_model_alias(
-        name=MODEL_NAME, 
-        alias="challenger", 
-        version=registered_model.version # or a specific version number like 1
-    )
+
+    logging.info(f"Registered Model {registered_model.name} and {registered_model.version}")
+
+    time.sleep(5)
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            client.set_registered_model_alias(
+                name=MODEL_NAME, 
+                alias="challenger", 
+                version=registered_model.version
+            )
+            logging.info(f"Alias 'challenger' set for version {registered_model.version}")
+            break
+        except Exception as e:
+            if i < max_retries - 1:
+                logging.warning(f"Registry not ready, retrying... ({i+1}/{max_retries})")
+                time.sleep(2)
+            else:
+                raise e
     logging.info("Best run found. Alias as challenger...")
 
 
 def challenge_champion():
     try:
+        mlflow.set_tracking_uri("http://mlflow:5000")
         __, xtest, __, ytest = preprocess()
         model_champion = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/champion")
         model_challenger = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/challenger")
