@@ -22,6 +22,7 @@ profile_config = ProfileConfig(
 project_config = ProjectConfig(
     dbt_project_path=DBT_PROJECT_PATH,
     models_relative_path="models",
+    dbt_vars= {"ticker": Variable.get("TICKER")}
 )
 
 default_args = {

@@ -11,6 +11,7 @@ from itertools import product
 from mlflow import MlflowClient
 import json
 import time
+from airflow.models import Variable
 
 MODEL_NAME = "stock-classifier"
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
       logging.basicConfig(level=logging.INFO)
 
-def get_features(ticker="SI=F"):
+def get_features(ticker):
     try:
         conn = snowflake_connection()
         cursor = conn.cursor()
@@ -47,7 +48,7 @@ def get_features(ticker="SI=F"):
     
 def preprocess():
     # Utilise features from Snowflake table and preprocessing the data.
-    df = get_features()
+    df = get_features(Variable.get("TICKER"))
     x = df.drop(["LABEL", "DATETIME", "TICKER", "NEXT_PRICE"], axis=1)
     y = df["LABEL"]
 

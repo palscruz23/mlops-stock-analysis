@@ -21,7 +21,7 @@ with DAG(
         task1 = PythonOperator(
             task_id="run_fetch_and_staging",
             python_callable=fetch_and_staging,
-            op_kwargs={"ticker":"SI=F", "period":"30d", "interval":"1h"}
+            op_kwargs={"ticker":Variable.get("TICKER"), "period":"2d", "interval":"1h"}
         )
 
         task2 = PythonOperator(

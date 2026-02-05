@@ -1,15 +1,22 @@
 {{ config(materialized='table') }}
 
-WITH base as (SELECT
+WITH base1 as (SELECT
     *,
     LEAD(CLOSE, 1) OVER (PARTITION BY TICKER ORDER BY DATETIME) AS NEXT_PRICE,
 FROM   
     {{ ref('int_price_features') }}
     )
 
-SELECT
+WITH base2 as (SELECT
     *,
     CASE WHEN NEXT_PRICE > CLOSE THEN 1 ELSE 0 END AS LABEL
 FROM   
-    base
+    base1
 WHERE NEXT_PRICE IS NOT NULL
+ORDER BY DATETIME DESC 
+LIMIT 100)
+
+SELECT
+    *
+FROM base2
+ORDER BY DATETIME ASC

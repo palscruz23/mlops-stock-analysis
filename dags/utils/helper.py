@@ -39,7 +39,7 @@ def write_table(df, database, schema, table_name, conn):
     
 
 
-def fetch_and_staging(ticker="SI=F", period="2d", interval="1h"):
+def fetch_and_staging(ticker, period="2d", interval="1h"):
     """
     Fetch data from Yahoo Finance and write to Snowflake temporary table.
     Input:
