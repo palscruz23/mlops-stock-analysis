@@ -1,19 +1,18 @@
 # Stock Analysis MLOps Pipeline
 
-<!-- TODO(human): Write a 2-4 sentence project description explaining:
-     - What problem this solves (stock price movement prediction)
-     - Why you built it (what you're learning / the MLOps concepts it demonstrates)
-     - What makes your approach interesting
--->
+This project is an end-to-end MLOps pipeline to perform stock price movement prediction (Silver Futures) in an hourly basis. It involves orchestration using Airflow to facilitate routine data ingestion, ML training and inference workflows. Model training and registry are captured using MLFlow. Data is stored in Snowflake.
 
 ## Architecture
 
 ```
-Yahoo Finance ──► Snowflake (PRICE table) ──► dbt transformations ──► ML Training / Inference
-                       ▲                            │
-                       │                            ▼
-                  Predictions              MLflow Model Registry
-                  (PREDICT_MOVEMENT)       (Champion/Challenger)
+API ──► Database (Price) ──► dbt transformations ──► ML Training 
+                                        │                  │
+                                        │                  ▼
+                                        │        MLflow Model Registry
+                                        │        (Champion/Challenger)
+                                        ▼
+          MLflow Model Registry ──► ML Inference ──► Database (Predict_Price)
+                (Champion)
 ```
 
 ### Airflow DAGs

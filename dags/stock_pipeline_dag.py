@@ -14,7 +14,7 @@ default_args = {
 with DAG(
       dag_id='stock-data-pipeline', 
       default_args=default_args,
-      schedule='30 19 * * *', 
+      schedule='0 * * * *', 
       start_date=datetime(2026, 1, 27),
       catchup=False,
   ) as dag:

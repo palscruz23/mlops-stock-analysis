@@ -10,14 +10,6 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
       logging.basicConfig(level=logging.INFO)
 
-## Run one only
-## Configure warehouse, database, schema, table, role
-# create_wh()
-# create_db()
-# create_schema()
-# create_table()
-# create_role()
-
 def write_table(df, database, schema, table_name, conn):
     try:
         logging.info(f"Updating Staging Table {table_name}...")
