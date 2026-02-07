@@ -1,45 +1,127 @@
-Overview
-========
+# Stock Analysis MLOps Pipeline
 
-Welcome to Astronomer! This project was generated after you ran 'astro dev init' using the Astronomer CLI. This readme describes the contents of the project, as well as how to run Apache Airflow on your local machine.
+<!-- TODO(human): Write a 2-4 sentence project description explaining:
+     - What problem this solves (stock price movement prediction)
+     - Why you built it (what you're learning / the MLOps concepts it demonstrates)
+     - What makes your approach interesting
+-->
 
-Project Contents
-================
+## Architecture
 
-Your Astro project contains the following files and folders:
+```
+Yahoo Finance ──► Snowflake (PRICE table) ──► dbt transformations ──► ML Training / Inference
+                       ▲                            │
+                       │                            ▼
+                  Predictions              MLflow Model Registry
+                  (PREDICT_MOVEMENT)       (Champion/Challenger)
+```
 
-- dags: This folder contains the Python files for your Airflow DAGs. By default, this directory includes one example DAG:
-    - `example_astronauts`: This DAG shows a simple ETL pipeline example that queries the list of astronauts currently in space from the Open Notify API and prints a statement for each astronaut. The DAG uses the TaskFlow API to define tasks in Python, and dynamic task mapping to dynamically print a statement for each astronaut. For more on how this DAG works, see our [Getting started tutorial](https://www.astronomer.io/docs/learn/get-started-with-airflow).
-- Dockerfile: This file contains a versioned Astro Runtime Docker image that provides a differentiated Airflow experience. If you want to execute other commands or overrides at runtime, specify them here.
-- include: This folder contains any additional files that you want to include as part of your project. It is empty by default.
-- packages.txt: Install OS-level packages needed for your project by adding them to this file. It is empty by default.
-- requirements.txt: Install Python packages needed for your project by adding them to this file. It is empty by default.
-- plugins: Add custom or community plugins for your project to this file. It is empty by default.
-- airflow_settings.yaml: Use this local-only file to specify Airflow Connections, Variables, and Pools instead of entering them in the Airflow UI as you develop DAGs in this project.
+### Airflow DAGs
 
-Deploy Your Project Locally
-===========================
+| DAG | Schedule | Purpose |
+|-----|----------|---------|
+| `stock-data-pipeline` | Hourly | Fetches stock data from Yahoo Finance, stages to Snowflake, merges to `PRICE` table |
+| `ml-pipeline` | Daily | Runs dbt feature engineering, trains RandomForest with grid search, registers best model, champion/challenger evaluation |
+| `inference-pipeline` | Hourly | Runs dbt inference features, loads champion model from MLflow, writes predictions to Snowflake |
 
-Start Airflow on your local machine by running 'astro dev start'.
+### Data Flow
 
-This command will spin up five Docker containers on your machine, each for a different Airflow component:
+1. **Ingestion**: `stock-data-pipeline` fetches hourly stock data from Yahoo Finance and loads it into Snowflake via a staging/merge pattern.
+2. **Feature Engineering (dbt)**: Transforms raw price data into ML features:
+   - `stg_price` — filters by ticker
+   - `int_price_features` — computes SMA_5, SMA_20, VOL_20, volatility, percentage change
+   - `ml_features` — adds labels for training (NEXT_PRICE, LABEL)
+   - `inference_features` — latest features for prediction
+3. **Training**: `ml-pipeline` performs grid search over RandomForest hyperparameters, logs all runs to MLflow, registers the best model as "challenger", and promotes it to "champion" if it outperforms the current champion on F1 score.
+4. **Inference**: `inference-pipeline` loads the champion model, predicts price movement direction, and writes results back to Snowflake's `PREDICT_MOVEMENT` table.
 
-- Postgres: Airflow's Metadata Database
-- Scheduler: The Airflow component responsible for monitoring and triggering tasks
-- DAG Processor: The Airflow component responsible for parsing DAGs
-- API Server: The Airflow component responsible for serving the Airflow UI and API
-- Triggerer: The Airflow component responsible for triggering deferred tasks
+## Tech Stack
 
-When all five containers are ready the command will open the browser to the Airflow UI at http://localhost:8080/. You should also be able to access your Postgres Database at 'localhost:5432/postgres' with username 'postgres' and password 'postgres'.
+- **Orchestration**: Apache Airflow via [Astronomer](https://www.astronomer.io/) (Astro Runtime 3.1)
+- **Data Warehouse**: Snowflake
+- **Transformations**: dbt (via [astronomer-cosmos](https://github.com/astronomer/astronomer-cosmos))
+- **ML Training & Registry**: MLflow + scikit-learn
+- **Data Source**: Yahoo Finance (yfinance)
 
-Note: If you already have either of the above ports allocated, you can either [stop your existing Docker containers or change the port](https://www.astronomer.io/docs/astro/cli/troubleshoot-locally#ports-are-not-available-for-my-local-airflow-webserver).
+## Project Structure
 
-Deploy Your Project to Astronomer
-=================================
+```
+stock-analysis/
+├── dags/
+│   ├── stock_pipeline_dag.py    # Data ingestion DAG
+│   ├── ml_pipeline_dag.py       # Training DAG
+│   ├── inference_dag.py         # Inference DAG
+│   └── utils/
+│       ├── helper.py            # Stock data fetch & Snowflake write utilities
+│       ├── ml_helper.py         # Training, registration, inference functions
+│       └── snowflake_setup.py   # Snowflake connection & setup utilities
+├── dbt/
+│   └── stock_analysis/
+│       └── models/
+│           ├── staging/         # stg_price.sql, sources.yml
+│           ├── intermediate/    # int_price_features.sql
+│           └── marts/           # ml_features.sql, inference_features.sql
+├── docker-compose.override.yml  # MLflow service
+├── Dockerfile                   # Astro Runtime base image
+├── requirements.txt             # Python dependencies
+├── airflow_settings.yaml        # Airflow connections & variables (local)
+└── .env                         # Environment variables (not committed)
+```
 
-If you have an Astronomer account, pushing code to a Deployment on Astronomer is simple. For deploying instructions, refer to Astronomer documentation: https://www.astronomer.io/docs/astro/deploy-code/
+## Setup
 
-Contact
-=======
+### Prerequisites
 
-The Astronomer CLI is maintained with love by the Astronomer team. To report a bug or suggest a change, reach out to our support.
+- [Astro CLI](https://www.astronomer.io/docs/astro/cli/install-cli)
+- Docker Desktop
+- Snowflake account
+
+### 1. Configure Environment
+
+Copy the example files and fill in your credentials:
+
+```bash
+cp .env.example .env
+cp airflow_settings.yaml.example airflow_settings.yaml
+```
+
+Edit `.env` with your Snowflake credentials:
+
+```
+SNOWFLAKE_USER="your_user"
+SNOWFLAKE_PASSWORD="your_password"
+SNOWFLAKE_ACCOUNT="your_account"
+SNOWFLAKE_WAREHOUSE="STOCK_WH"
+SNOWFLAKE_DATABASE="STOCKS_DB"
+SNOWFLAKE_SCHEMA="STOCKS"
+```
+
+Edit `airflow_settings.yaml` to configure:
+- **Connection** (`snowflake_conn`): Your Snowflake connection details
+- **Variables**: `TICKER` (e.g., `SI=F`) and `USER` (DAG owner name)
+
+### 2. Snowflake Setup
+
+Run the setup functions in `snowflake_setup.py` once to create the warehouse, database, schema, table, and role:
+
+```python
+create_wh()
+create_db()
+create_schema()
+create_table()
+create_role()
+```
+
+### 3. Start Services
+
+```bash
+astro dev start
+```
+
+This launches Airflow (http://localhost:8080) and MLflow (http://localhost:5000).
+
+### 4. Run the Pipelines
+
+1. Enable `stock-data-pipeline` in the Airflow UI to begin ingesting data
+2. Once sufficient data is collected, enable `ml-pipeline` to train and register models
+3. After a champion model is promoted, enable `inference-pipeline` for hourly predictions
