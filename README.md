@@ -4,15 +4,22 @@ This project is an end-to-end MLOps pipeline to perform stock price movement pre
 
 ## Architecture
 
-```
-API ──► Database (Price) ──► dbt transformations ──► ML Training 
-                                        │                  │
-                                        │                  ▼
-                                        │        MLflow Model Registry
-                                        │        (Champion/Challenger)
-                                        ▼
-          MLflow Model Registry ──► ML Inference ──► Database (Predict_Movement)
-                (Champion)
+```mermaid
+flowchart LR
+    A[Data Source API] -->|Hourly| B[(Snowflake Price Table)]
+
+    subgraph Training Pipeline - Daily
+        B --> C[dbt Transformations]
+        C --> D[ML Training\nGrid Search]
+        D --> E[MLflow Registry Champion/Challenger]
+    end
+
+    subgraph Inference Pipeline - Hourly
+        B --> F[dbt Transformations]
+        E -->|Champion Model| G[ML Inference]
+        F --> G
+        G --> H[(Snowflake Prediction Table)]
+    end
 ```
 
 ### Airflow DAGs
