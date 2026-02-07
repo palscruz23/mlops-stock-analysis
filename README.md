@@ -11,7 +11,7 @@ API ──► Database (Price) ──► dbt transformations ──► ML Traini
                                         │        MLflow Model Registry
                                         │        (Champion/Challenger)
                                         ▼
-          MLflow Model Registry ──► ML Inference ──► Database (Predict_Price)
+          MLflow Model Registry ──► ML Inference ──► Database (Predict_Movement)
                 (Champion)
 ```
 

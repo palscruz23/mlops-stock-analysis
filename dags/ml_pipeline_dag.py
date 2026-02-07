@@ -33,7 +33,7 @@ default_args = {
 with DAG(
       dag_id='ml-pipeline',  
       default_args=default_args,
-      schedule='0 20 * * 1',  # Remember: daily at 6am?
+      schedule='0 20 * * *',  # Remember: daily at 6am?
       start_date=datetime(2026, 1, 27),
       catchup=False,
   ) as dag:
