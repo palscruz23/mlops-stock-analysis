@@ -63,8 +63,8 @@ stock-analysis/
 ├── docker-compose.override.yml  # MLflow service
 ├── Dockerfile                   # Astro Runtime base image
 ├── requirements.txt             # Python dependencies
-├── airflow_settings.yaml        # Airflow connections & variables (local)
-└── .env                         # Environment variables (not committed)
+├── airflow_settings.yaml        # Airflow connections & variables  (example airflow settings provided)
+└── .env                         # Environment variables (example env provided)
 ```
 
 ## Setup
